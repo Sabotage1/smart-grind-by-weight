@@ -36,6 +36,12 @@ def main():
         assert path.stat().st_size == item['bytes'] and digest(path) == item['sha256'], str(path)
     plugin = ROOT / 'integrations/decaid/atom65.reaplugin'
     with ZipFile(RELEASE / 'atom65-profile-sync-0.1.0.zip') as archive:
+        assert json.loads(archive.read('manifest.json'))['version'] == '0.1.0'
+    latest = ROOT / 'release/decaid-atom65-0.1.1'
+    sha, filename = (latest / 'SHA256SUMS').read_text().split()
+    assert digest(latest / filename) == sha
+    with ZipFile(latest / filename) as archive:
+        assert archive.testzip() is None
         for name in ['manifest.json', 'plugin.js']:
             assert archive.read(name) == (plugin / name).read_bytes(), name
     for name in ['install_ble.py', 'requirements-ble.txt']:
@@ -55,7 +61,7 @@ def main():
         for path in (ROOT / '3d_files/atom65').rglob('*.stl'):
             mesh = trimesh.load_mesh(path)
             assert mesh.is_watertight and mesh.volume > 0 and len(mesh.split()) == 1, path.name
-    print('PASS: release hashes, exact installed source/plugin, CAD manifest, portable updater, local links and photo metadata' + (', five meshes' if args.meshes else ''))
+    print('PASS: release hashes, installed firmware source and latest plugin, CAD manifest, portable updater, local links and photo metadata' + (', five meshes' if args.meshes else ''))
 
 
 if __name__ == '__main__':

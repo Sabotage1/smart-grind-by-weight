@@ -56,3 +56,41 @@ test('renamed or edited recipe defaults to leave even with the same workflow id'
 test('invalid global settings fail during plugin load',async()=>{for(const values of [{SyncEnabled:'yes'},{MaximumDose:0},{MaximumDose:'40'},{MaximumDose:Infinity}])await assert.rejects(fixture().load(values));});
 test('native manifest does not misrepresent dose as burr position or motor capability',()=>{const m=JSON.parse(fs.readFileSync(path.join(root,'atom65.reaplugin/manifest.json')));assert.deepEqual(m.drivers[0].capabilities,[]);assert.ok(m.permissions.includes('events.workflow'));assert.ok(m.drivers[0].ble.match.serviceUuids[0].startsWith('5e5d6500'));});
 test('settings UI parses and renders user-controlled labels through textContent',()=>{const f=fixture();const html=f.context.atomSettingsPage();new vm.Script(html.match(/<script>([\s\S]*)<\/script>/)[1]);assert.ok(html.includes("li.textContent=r.title"));assert.ok(!html.includes('innerHTML'));assert.ok(html.includes('Leave grinder unchanged'));});
+
+test('skin can read and save another profile without selecting or syncing it',async()=>{
+  const f=fixture();await f.load();const d=await f.connect(),active=workflow(profile('Active')),other=profile('Other');f.select(active);
+  const read=await f.api('profile-settings',{profile:other},d.deviceId);
+  assert.equal(read.status,200);assert.equal(read.body.profile.key,f.key(other));assert.equal(read.body.rule.mode,'leave');
+  assert.equal(f.storage.filter(x=>x.type==='write').length,0);
+  const saved=await f.api('profile-settings',{profile:other,choice:{profileKey:read.body.profile.key,mode:'fixed',weight:20.5}},d.deviceId);
+  assert.equal(saved.status,200);assert.equal(saved.body.rule.weight,20.5);assert.equal((await f.api('status',null,d.deviceId)).body.profile.title,'Active');
+  await f.tick(150);assert.equal(f.writes.length,0);
+  f.select(workflow(other,17));await f.tick(150);assert.equal(f.writes.length,1);assert.equal(f.writes[0].dose,20.5);
+  f.select(active);await f.tick(150);assert.equal(f.writes.length,1);
+  f.plugin.onUnload();
+});
+test('library rules remain per device, survive reload, and can be disabled',async()=>{
+  const f=fixture();await f.load();const d=await f.connect('a'),other=await f.connect('b'),p=profile();
+  const choice={profileKey:f.key(p),mode:'fixed',weight:21};
+  await f.api('profile-settings',{profile:p,choice},d.deviceId);
+  assert.equal((await f.api('profile-settings',{profile:p},other.deviceId)).body.rule.mode,'leave');
+  const next=fixture({store:f.store});f.plugin.onUnload();await next.load();const reconnected=await next.connect('a');
+  assert.equal((await next.api('profile-settings',{profile:p},reconnected.deviceId)).body.rule.weight,21);
+  next.select(workflow(p));
+  await next.api('profile-settings',{profile:p,choice:{profileKey:next.key(p),mode:'leave'}},reconnected.deviceId);
+  await next.tick(150);assert.equal(next.writes.length,0);next.plugin.onUnload();
+});
+test('library edits cannot resume a paused grinder or conflate same-title recipes',async()=>{
+  const f=fixture();await f.load();const d=await f.connect(),a=profile(),b=profile('Espresso',{steps:[{temperature:94}]});
+  await f.rule(d,workflow(a),'workflow',18,false);
+  const r=await f.api('profile-settings',{profile:b,choice:{profileKey:f.key(b),mode:'fixed',weight:19}},d.deviceId);
+  assert.equal(r.status,200);assert.equal(r.body.deviceEnabled,false);
+  assert.equal((await f.api('profile-settings',{profile:a},d.deviceId)).body.rule.mode,'workflow');
+  f.select(workflow(b));await f.tick(150);assert.equal(f.writes.length,0);f.plugin.onUnload();
+});
+test('library API rejects invalid profiles, mismatched keys and unexpected fields',async()=>{
+  const f=fixture();await f.load();const d=await f.connect(),p=profile();
+  for(const body of [{profile:{title:'Empty'}},{profile:p,unexpected:true},{profile:p,choice:{profileKey:f.key(p),mode:'fixed',weight:18,enabled:true}},{profile:p,choice:{profileKey:f.key(p),mode:'fixed',weight:18.05}}])assert.equal((await f.api('profile-settings',body,d.deviceId)).status,400);
+  assert.equal((await f.api('profile-settings',{profile:p,choice:{profileKey:f.key(profile('Different')),mode:'workflow'}},d.deviceId)).status,409);
+  assert.equal(f.storage.filter(x=>x.type==='write').length,0);assert.equal(f.writes.length,0);f.plugin.onUnload();
+});

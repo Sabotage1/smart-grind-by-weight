@@ -22,3 +22,7 @@ The five provided STL alternatives are watertight positive-volume single bodies;
 Electrical isolation and supply margin on the actual board, latest-print fit/retention, installed OLED/touch appearance and burn-in behavior, prolonged disconnected radio behavior, power/crash/sensor-fault motor-off behavior on the assembled grinder, and repeatable delivered-dose accuracy require physical acceptance. Pixel shift reduces static placement but does not guarantee prevention of OLED burn-in.
 
 The USB first-install bundle is checked against the upstream layout and toolchain files. Its first flash onto an entirely blank controller was not physically repeated for this release; the observed build19 installation used Bluetooth.
+
+## Driver 0.1.1 — 13 November 2026
+
+Adds the profile-settings API for WorkFlow Skin 0.4.5’s **Profiles → Grinder dose** editor. The 34 driver/protocol tests cover inactive-recipe editing without workflow changes or dose transmission, rule identity validation, invalid weight rejection and preserving device pause state. The owner reported testing the 0.1.1 driver/skin integration successfully. This is an owner report, not an independently repeated hardware test. Controller firmware remains build19; the original build19 installation evidence and 0.1.0 archive remain historical snapshots.

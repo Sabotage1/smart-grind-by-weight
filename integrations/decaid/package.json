@@ -1,6 +1,6 @@
 {
   "name": "decaid-atom65",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Per-profile opt-in dose sync for the custom Atom65 GBW conversion",
   "scripts": {

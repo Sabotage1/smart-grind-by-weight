@@ -1,6 +1,6 @@
 # Atom65 Profile Sync for Decaid
 
-Version 0.1.0 — dose-only Bluetooth driver for the custom ESP32-S3 Atom65 GBW conversion.
+Version 0.1.1 — dose-only Bluetooth driver for the custom ESP32-S3 Atom65 GBW conversion.
 This does not support an unmodified Eureka Atom65.
 
 ## Profile choices
@@ -36,7 +36,7 @@ espresso-machine settings are modified.
    Decaid 0.9.1 on the installed controller.
 2. Install this fork's Atom65 build19 firmware first. See [firmware setup](../../docs/atom65/FIRMWARE.md). Existing GPIO1 build12 has no dose service.
 3. In Decaid, open **Plugins → cogwheel → Install plugin → ZIP file**, and choose
-   the release’s `atom65-profile-sync-0.1.0.zip` (or build it locally with `npm run build`).
+   the release’s `atom65-profile-sync-0.1.1.zip` (or build it locally with `npm run build`).
    If using the REST source installer, send `manifest.json` and `plugin.js` to
    `PUT /api/v1/plugins/atom65.reaplugin/source`, then enable/load the plugin.
 4. Enable Bluetooth on the grinder. Scan in Decaid and connect **GrindByWeight**
@@ -51,6 +51,23 @@ espresso-machine settings are modified.
 The settings page shows the selected profile, Decaid dose, grinder target,
 confirmation/error status, and saved enabled profiles. With several Atom65s,
 open settings from the specific device rather than the skin shortcut.
+
+### WorkFlow Skin integration (0.1.1)
+
+In WorkFlow Skin 0.4.5, open **Profiles → Grinder dose** next to any recipe.
+Choose **Leave grinder unchanged**, **Use Brew dose**, or **Use a fixed grind weight**,
+then **Save grinder choice**. This uses the same driver-owned rules as Device settings;
+existing choices and per-device pauses are preserved. Editing an inactive recipe
+does not select it or send its dose. Selecting an enabled recipe applies its rule.
+Install the updated plugin ZIP as well as the skin ZIP; no controller firmware
+change is needed when upgrading from the working Profile Sync driver.
+
+The new `POST profile-settings?deviceId=<encoded device id>` endpoint accepts
+`{profile:<Decaid profile JSON>}` to read a rule. To save it, add
+`choice:{profileKey:<returned key>,mode:"leave"|"workflow"|"fixed",weight:<grams>}`.
+Weight is required only for fixed mode. The driver verifies the canonical recipe
+key, validates the dose, and acknowledges storage before returning success.
+This endpoint never changes the workflow or overrides a device's paused state.
 
 ## Grinder behavior
 
@@ -78,7 +95,9 @@ compiles the firmware protocol/mailbox against a fake RTOS/backend. `npm run bui
 bundles the QuickJS script and creates a validated ZIP with a SHA-256 checksum.
 The separate firmware build uses the already installed PlatformIO environment.
 
-The [public validation record](../../docs/atom65/VALIDATION.md) distinguishes automated and physical evidence. On 13 November 2026 this driver 0.1.0 was installed on Decaid 0.9.1 with firmware build19; a live 12.5 g CUSTOM synchronization was confirmed. The release ZIP is the original installed package; rebuilding includes this updated README and changes ZIP bytes, while the manifest and bundled plugin remain identical.
+The [public validation record](../../docs/atom65/VALIDATION.md) distinguishes automated checks and physical evidence. Version 0.1.1 passed 34 driver/protocol tests. On 13 November 2026 the owner reported testing the 0.1.1 driver and skin integration successfully. This release keeps the prepared runtime code unchanged and updates the packaged documentation. Firmware build19 remains unchanged.
+
+Download [driver 0.1.1](https://github.com/Sabotage1/smart-grind-by-weight/releases/tag/atom65-profile-sync-v0.1.1). The original build19 release retains its historical 0.1.0 package; use the separate 0.1.1 release for the latest driver.
 
 The real Decaid QuickJS integration harness is `test/host_harness.dart`; copy it
 to `test/plugins/atom65_external_test.dart` in a Decaid source checkout and run

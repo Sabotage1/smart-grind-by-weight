@@ -16,7 +16,9 @@ The owner’s 220 V unit, purchased in 2022, runs **firmware build19**. This bra
 |---|---|
 | `atom65-build19-install.zip` | Exact installed application, full Bluetooth OTA patch, USB bootstrap files, portable updater and checksums |
 | `ATOM65_PRINT_AND_ASSEMBLY_v0_43.zip` | Front panel v0.43, fixed adapter v0.9 and moving 73 mm cradle v0.8; STL + editable STEP; optional two-piece panel |
-| `atom65-profile-sync-0.1.0.zip` | Per-profile opt-in Decaid grinder driver |
+| [`atom65-profile-sync-0.1.1.zip`](https://github.com/Sabotage1/smart-grind-by-weight/releases/tag/atom65-profile-sync-v0.1.1) | Latest per-profile Decaid driver, including WorkFlow Skin profile-editor integration |
+
+The firmware build19 bundle retains driver 0.1.0 as its original snapshot. Download the separate **0.1.1 driver** above for the latest integration.
 
 Use the Atom65 files in this branch. Its default PlatformIO environment is `atom-v11-gpio1-motor-test` (the historical environment name; it is the installed GPIO1 build). On V1.1, **GPIO18 belongs to touch** and **LCD CS is GPIO46**. GPIO1 controls the verified RL interface in this build.
 

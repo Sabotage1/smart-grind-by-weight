@@ -208,8 +208,8 @@ function createPlugin(host) {
     } catch (e) {stop(state); state.message = e.message; state.session.reportDisconnected().catch(log); throw e;}
   }
   function response(status, body) {return {status, headers:{"Content-Type":"application/json", "Cache-Control":"no-store"}, body:JSON.stringify(body)};}
-  function snapshot(state) {
-    const p = atomProfile(workflow), entry = config.devices[state.deviceId] || {enabled:true, rules:{}};
+  function snapshot(state, p = atomProfile(workflow)) {
+    const entry = config.devices[state.deviceId] || {enabled:true, rules:{}};
     return {deviceId:state.deviceId, name:state.name, connected:state.ready && !state.stopped, loaded, storageError, saving,
       deviceEnabled:entry.enabled, syncEnabled:settings.SyncEnabled && entry.enabled, maximumDose:settings.MaximumDose, message:state.message,
       grinder:state.status, profile:p, workflowDose:workflow && workflow.context && workflow.context.targetDoseWeight,
@@ -223,10 +223,10 @@ function createPlugin(host) {
       host.storage({type:"write", key:storageKey, data:{...candidate, serial}});
     });
   }
-  async function configure(state, body) {
+  async function configure(state, body, libraryProfile) {
     if (!loaded || storageError) throw fail(storageError || "Saved choices are still loading", "storage_unavailable");
     if (!object(body) || Object.keys(body).some(k => !["profileKey","mode","weight","enabled"].includes(k))) throw fail("Invalid profile settings");
-    const p = atomProfile(workflow);
+    const p = libraryProfile || atomProfile(workflow);
     if (!p || body.profileKey !== p.key) throw fail("The selected profile changed; refresh and try again", "profile_changed");
     if (!["leave","workflow","fixed"].includes(body.mode) || typeof body.enabled !== "boolean") throw fail("Choose a profile sync mode");
     if (body.mode === "fixed") dose(body.weight, state.status);
@@ -240,10 +240,10 @@ function createPlugin(host) {
     else entry.rules[p.key] = {title:p.title, mode:body.mode, ...(body.mode === "fixed" ? {weight:body.weight} : {})};
     candidate.devices[state.deviceId] = entry;
     try {await persist(candidate); config = candidate;} finally {saving = false; refresh();}
-    return snapshot(state);
+    return snapshot(state, p);
   }
   return {
-    id, version:"0.1.0",
+    id, version:"0.1.1",
     onLoad(values) {
       settings = {SyncEnabled:true, MaximumDose:40, ...values};
       if (typeof settings.SyncEnabled !== "boolean" || typeof settings.MaximumDose !== "number" || !Number.isFinite(settings.MaximumDose) || settings.MaximumDose < 5 || settings.MaximumDose > 1000) throw fail("Invalid Atom65 plugin settings");
@@ -300,13 +300,25 @@ function createPlugin(host) {
       if (retired) return response(503,{error:"Plugin unloaded"});
       if (request.endpoint === "device-settings" && request.method === "GET") return {status:200,headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-store"},body:atomSettingsPage()};
       if (request.endpoint === "skin" && request.method === "GET") return response(200,{version:1,surfaces:[{id:"atom65",kind:"header-button",label:"Atom65",action:{type:"open",view:"device-settings",presentation:"overlay"}}]});
-      if (!["status","configure","sync"].includes(request.endpoint)) return response(404,{error:"Unknown endpoint"});
+      if (!["status","configure","sync","profile-settings"].includes(request.endpoint)) return response(404,{error:"Unknown endpoint"});
       if (request.method !== (request.endpoint === "status" ? "GET" : "POST")) return response(405,{error:"Method not allowed"});
       try {
         // An opened skin surface can omit deviceId only when there is one known grinder.
         if ((!request.query || !request.query.deviceId) && devices.size === 1) request = {...request,query:{deviceId:devices.keys().next().value}};
         const state = current(request);
         if (request.endpoint === "status") return response(200,snapshot(state));
+        if (request.endpoint === "profile-settings") {
+          const body = request.body;
+          if (!object(body) || Object.keys(body).some(k => !["profile","choice"].includes(k))) throw fail("Invalid profile settings request");
+          const p = atomProfile({profile:body.profile});
+          if (!p) throw fail("Choose a named profile with recipe steps");
+          // Library edits never select a workflow. The same canonical identity and
+          // acknowledged storage used by Device settings remain authoritative.
+          if (body.choice === undefined) return response(200,snapshot(state,p));
+          if (!object(body.choice) || Object.keys(body.choice).some(k => !["profileKey","mode","weight"].includes(k))) throw fail("Invalid profile choice");
+          const result = saveQueue.then(() => configure(state, {...body.choice, enabled:config.devices[state.deviceId]?.enabled ?? true}, p));
+          saveQueue = result.catch(() => {}); return response(200,await result);
+        }
         if (request.endpoint === "configure") {
           const result = saveQueue.then(() => configure(state, request.body));
           saveQueue = result.catch(() => {}); return response(200,await result);

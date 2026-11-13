@@ -1,6 +1,6 @@
 # Decaid: choose exactly which profiles change the grinder
 
-Install `atom65-profile-sync-0.1.0.zip` from the [release](https://github.com/Sabotage1/smart-grind-by-weight/releases/tag/v1.4.0-atom65-build19). This is the **per-profile opt-in** driver `atom65.reaplugin`, verified on Decaid 0.9.1. Do not also load another Atom65 dose-sync driver for the same physical grinder.
+Install `atom65-profile-sync-0.1.1.zip` from the [driver release](https://github.com/Sabotage1/smart-grind-by-weight/releases/tag/atom65-profile-sync-v0.1.1). This is the **per-profile opt-in** driver `atom65.reaplugin`, verified on Decaid 0.9.1. Do not also load another Atom65 dose-sync driver for the same physical grinder.
 
 1. In Decaid → Plugins → Install plugin → ZIP file, install the ZIP. Load it and enable auto-load.
 2. On the grinder, enable Bluetooth. Leave Startup on and Auto-off off for continuous reconnection availability while powered.
@@ -26,3 +26,11 @@ The settings page shows the current profile, workflow dose, grinder target, save
 **No skin change is needed** to use Device settings. A skin can add a shortcut via the plugin’s declared settings surface; exposing choices inside a skin’s profile editor is an optional UI enhancement. Decaid remains responsible for BLE discovery, recovery and the primary espresso scale. The driver exposes no remote motor start/stop, burr-gap, RPM, tare, calibration or OTA controls.
 
 [Driver source and API details](../../integrations/decaid/README.md).
+
+## WorkFlow Skin profile editor (driver 0.1.1)
+
+With WorkFlow Skin 0.4.5 and driver 0.1.1, open **Profiles → Grinder dose** next to a recipe. Choose **Leave grinder unchanged**, **Use Brew dose**, or **Use a fixed grind weight**, then **Save grinder choice**. These edit the same driver-owned per-device rules as Device settings. Editing an inactive recipe neither selects it nor sends its dose. Selecting an enabled recipe applies its saved rule; existing per-device pauses are preserved.
+
+Install both the updated driver and compatible skin. No new controller firmware is required when upgrading the working driver on build19. Device settings remains available without skin changes. The owner reported successful testing of this integration on 13 November 2026.
+
+As of 13 November 2026, a public WorkFlow Skin 0.4.5 release was not available. The skin is a separate package and is not bundled in the driver release; the driver’s Device settings work without that skin update.
