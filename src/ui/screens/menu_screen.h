@@ -46,6 +46,7 @@ private:
     // Menu toggle elements
     lv_obj_t* ble_toggle;
     lv_obj_t* ble_startup_toggle;
+    lv_obj_t* ble_auto_off_toggle = nullptr;
     lv_obj_t* ble_status_label;
     lv_obj_t* ble_timer_label;
     lv_obj_t* logging_toggle;
@@ -59,6 +60,7 @@ private:
     // Grind mode tab elements
     lv_obj_t* grind_mode_radio_group;
     lv_obj_t* grind_mode_swipe_toggle;
+    lv_obj_t* auto_select_dropdown = nullptr;
     lv_obj_t* auto_start_toggle;
     lv_obj_t* auto_return_toggle;
     lv_obj_t* grinder_purge_mode_radio_group;
@@ -126,6 +128,7 @@ public:
     lv_obj_t* get_autotune_button() const { return autotune_button; }
     bool is_scale_page_active() const { return scale_active; }
     lv_obj_t* get_ble_toggle() const { return ble_toggle; }
+    lv_obj_t* get_ble_auto_off_toggle() const { return ble_auto_off_toggle; }
     lv_obj_t* get_ble_startup_toggle() const { return ble_startup_toggle; }
     lv_obj_t* get_logging_toggle() const { return logging_toggle; }
     lv_obj_t* get_refresh_stats_button() const { return refresh_stats_button; }
@@ -134,6 +137,7 @@ public:
     lv_obj_t* get_brightness_screensaver_slider() const { return brightness_screensaver_slider; }
     lv_obj_t* get_grind_mode_radio_group() const { return grind_mode_radio_group; }
     lv_obj_t* get_grind_mode_swipe_toggle() const { return grind_mode_swipe_toggle; }
+    lv_obj_t* get_auto_select_dropdown() const { return auto_select_dropdown; }
     lv_obj_t* get_auto_start_toggle() const { return auto_start_toggle; }
     lv_obj_t* get_auto_return_toggle() const { return auto_return_toggle; }
     lv_obj_t* get_grinder_purge_mode_radio_group() const { return grinder_purge_mode_radio_group; }

@@ -10,14 +10,19 @@
   },
   "files": [
     {
+      "path": "CERN-OHL-S-2.0.txt",
+      "bytes": 13419,
+      "sha256": "d6475a84171f0cf7ff52667dea714df268fc65cea42f0bf328b0b70d4cd0ebab"
+    },
+    {
       "path": "LICENSE.txt",
       "bytes": 1761,
       "sha256": "7d466488353c0dd232b6f25bd31dc1be3f6de90d0fa64ef99100504d6d5cacad"
     },
     {
       "path": "README.md",
-      "bytes": 8534,
-      "sha256": "6d5c55167fd72de308cdc38f9233a52f6863dc56856254cefe0e14b8035cbfed"
+      "bytes": 8860,
+      "sha256": "98e0e3c26e8126ecccab43ec6eeee036ad0ccfcd9674085c130cc8ace096acdc"
     },
     {
       "path": "front_panel_v043.step",

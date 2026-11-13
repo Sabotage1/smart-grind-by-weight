@@ -112,6 +112,14 @@ void GrindController::start_grind(float target, uint32_t time_ms, GrindMode grin
     LOG_BLE("[%lums CONTROLLER] start_grind() called with target=%.1fg, time=%lums, mode=%s\n",
             millis(), target, (unsigned long)time_ms, grind_mode == GrindMode::TIME ? "TIME" : "WEIGHT");
     if (!weight_sensor || !grinder) return;
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    const uint32_t last_sample = weight_sensor->get_last_valid_sample_ms();
+    if (!grinder->is_initialized() || last_sample == 0 || millis() - last_sample > 500) {
+        grinder->stop();
+        LOG_BLE("[MOTOR] Start rejected: motor unavailable or scale samples stale\n");
+        return;
+    }
+#endif
     if (weight_sensor->has_hardware_fault()) {
         LOG_BLE("ERROR: Cannot start grind - load cell hardware fault detected (%d)\n",
                 static_cast<int>(weight_sensor->get_hardware_fault()));
@@ -296,6 +304,18 @@ void GrindController::update() {
     loop_data.motor_is_on = grinder ? (grinder->is_grinding() ? 1 : 0) : 0;
     loop_data.phase_id = get_current_phase_id();
     loop_data.flow_rate = weight_sensor ? weight_sensor->get_flow_rate() : 0.0f;
+
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    const uint32_t last_sample = weight_sensor ? weight_sensor->get_last_valid_sample_ms() : 0;
+    if (!weight_sensor || weight_sensor->has_hardware_fault() || last_sample == 0 || now - last_sample > 500) {
+        grinder->stop();
+        timeout_phase = phase;
+        last_session_result_ = GrindSessionResult::ERROR;
+        set_error_message("Err: scale data");
+        switch_phase(GrindPhase::TIMEOUT, loop_data);
+        return;
+    }
+#endif
     loop_data.weight_delta = loop_data.current_weight - last_logged_weight;
 
     if (control_loop_paused_) {

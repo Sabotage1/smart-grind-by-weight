@@ -718,6 +718,9 @@ bool WeightSensor::sample_and_feed_filter() {
         if (raw_adc >= 0 && raw_adc <= 0xFFFFFF) {  // Valid 24-bit range
             // Thread-safe sample feeding (CircularBufferMath is single-producer safe)
             raw_filter.add_sample(raw_adc, timestamp);
+#ifdef ATOM_GPIO1_MOTOR_TEST
+            last_valid_sample_ms_.store(timestamp);
+#endif
             
             // Tare logic (hardware-independent)
             if (doTare) {

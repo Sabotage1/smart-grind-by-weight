@@ -25,3 +25,9 @@ failed_session_*.bin
 
 # Git worktrees
 .worktrees/
+
+# Local commissioning records and generated release bundles
+local-install-record*.json
+.venv/
+integrations/decaid/dist/
+release/atom65-build19-install.zip

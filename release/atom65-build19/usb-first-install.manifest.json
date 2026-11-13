@@ -1,0 +1,28 @@
+{
+  "name": "Atom65 GBW V1.1 GPIO1",
+  "version": "1.4.0-atom65-build19",
+  "new_install_skip_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "usb/bootloader.bin",
+          "offset": 0
+        },
+        {
+          "path": "usb/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "usb/blank-8kb.bin",
+          "offset": 57344
+        },
+        {
+          "path": "firmware.bin",
+          "offset": 3276800
+        }
+      ]
+    }
+  ]
+}

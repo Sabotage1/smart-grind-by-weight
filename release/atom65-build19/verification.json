@@ -1,0 +1,43 @@
+{
+  "release": "v1.4.0-atom65-build19",
+  "installed_build": 19,
+  "device_version": "1.4.0-atom65-decaid-oled",
+  "date": "2026-11-13",
+  "upstream_base": "afdacc8aec6a3470c75eb1ea830bb3b9534316ca",
+  "hardware": {
+    "grinder": "Eureka Atom Speciality 65, 220V, purchased 2022",
+    "power_board": "MAME Rev.1.2",
+    "controller": "Waveshare ESP32-S3-Touch-AMOLED-1.64 V1.1",
+    "motor": "GPIO1 active high",
+    "scale": "HX711 DOUT3/SCK2, T70 1kg"
+  },
+  "release_binary_equals_installed": true,
+  "firmware_sha256": "d46b1cb45ba5a8f99f6bf5a0f5b9247acdc5b5f4bbcbe7512504820c814d56cc",
+  "full_ota_sha256": "1c2536882e1cbc2ad9fe7998792bd200c29a7206182c8258efdef31eef6e2775",
+  "decaid_driver": {
+    "id": "atom65.reaplugin",
+    "version": "0.1.0",
+    "zip_sha256": "f07b116b2f614e4459b96221fab1317e873ee80d16b9bae1f3826ea6bcc2e74b",
+    "default_profile_policy": "leave unchanged"
+  },
+  "automated_checks": {
+    "firmware_host_groups": 8,
+    "driver_tests": 30,
+    "portable_updater_tests": 6,
+    "stl_watertight_positive_single_body": 5,
+    "step_valid_single_solid": 5,
+    "photo_metadata": "orientation only, GPS removed"
+  },
+  "physical_evidence": {
+    "build19_full_bluetooth_update_from18": true,
+    "post_reboot_version_build_read": true,
+    "decaid_0_9_1_profile_dose_12_5g_CUSTOM_confirmed": true,
+    "owner_reported_build12_one_dose": {
+      "target_g": 12.5,
+      "settled_g": 12.4
+    },
+    "blank_controller_usb_first_flash_retested": false,
+    "latest_cad_export_reprint_separately_confirmed": false
+  },
+  "privacy": "No device addresses, profile identities, local network addresses, NVS images or private settings in this record."
+}

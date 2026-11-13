@@ -13,6 +13,12 @@
 #include "tasks/weight_sampling_task.h"
 #include "tasks/grind_control_task.h"
 #include "tasks/file_io_task.h"
+#ifdef ATOM_BENCH_USB_TELEMETRY
+#include "diagnostics/bench_usb_telemetry.h"
+#endif
+#ifdef ATOM_GPIO1_MOTOR_TEST
+#include "diagnostics/atom_motor_usb.h"
+#endif
 
 HardwareManager hardware_manager;
 StateMachine state_machine;
@@ -32,6 +38,13 @@ static uint32_t core1_last_heartbeat_time = 0;
 #endif
 
 void setup() {
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    // Establish LOW before display, filesystem, preferences or Bluetooth setup.
+    gpio_set_level(GPIO_NUM_1, 0);
+    gpio_set_direction(GPIO_NUM_1, GPIO_MODE_INPUT_OUTPUT);
+    gpio_pullup_dis(GPIO_NUM_1);
+    gpio_pulldown_en(GPIO_NUM_1);
+#endif
     Serial.begin(HW_SERIAL_BAUD_RATE);
 #ifdef UI_DEBUG_SERIAL_DELAY_MS
     delay(UI_DEBUG_SERIAL_DELAY_MS);
@@ -140,6 +153,9 @@ void setup() {
     file_io_task.init(task_manager.get_file_io_queue());
     
     LOG_BLE("✅ All task modules initialized\n");
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    atom_motor_status(hardware_manager.get_grinder(), bluetooth_manager.is_enabled());
+#endif
 }
 
 void loop() {
@@ -178,6 +194,10 @@ void loop() {
     bool ota_active = bluetooth_manager.is_updating();
     
     if (ota_active && !hardware_suspended) {
+#ifdef ATOM_GPIO1_MOTOR_TEST
+        if (grind_controller.is_active()) grind_controller.stop_grind();
+        hardware_manager.get_grinder()->stop();
+#endif
         task_manager.suspend_hardware_tasks();
         hardware_suspended = true;
         LOG_BLE("[MAIN] Hardware tasks suspended for OTA\n");
@@ -187,6 +207,15 @@ void loop() {
         LOG_BLE("[MAIN] Hardware tasks resumed after OTA\n");
     }
     
+#ifdef ATOM_BENCH_USB_TELEMETRY
+    if (!hardware_suspended) {
+        bench_usb_telemetry(hardware_manager.get_weight_sensor());
+    }
+#endif
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    atom_motor_usb(hardware_manager.get_grinder(), grind_controller.is_active(), ota_active, bluetooth_manager.is_enabled());
+#endif
+
     // UI events are now processed inside the UI render FreeRTOS task
     // to serialize all LVGL updates on a single thread.
     

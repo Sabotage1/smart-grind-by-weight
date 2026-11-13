@@ -58,6 +58,9 @@ private:
     
     bool data_available;
     std::atomic<HardwareFault> hardware_fault_;
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    std::atomic<uint32_t> last_valid_sample_ms_{0};
+#endif
     float detected_sample_rate_sps_;
     
     // Tare implementation (hardware-independent)
@@ -200,6 +203,9 @@ public:
     HardwareFault get_hardware_fault() const { return hardware_fault_.load(); }
     void set_hardware_fault(HardwareFault fault) { hardware_fault_.store(fault); }
     bool has_hardware_fault() const { return get_hardware_fault() != HardwareFault::NONE; }
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    uint32_t get_last_valid_sample_ms() const { return last_valid_sample_ms_.load(); }
+#endif
 
     // Hardware validation and information
     bool validate_hardware();

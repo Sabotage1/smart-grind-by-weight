@@ -2,6 +2,10 @@
 #include <Arduino_GFX_Library.h>
 #include <lvgl.h>
 #include "touch_driver.h"
+#include "wake_touch_guard.h"
+#ifdef ATOM_GPIO1_MOTOR_TEST
+#include "pixel_shift.h"
+#endif
 #include "../config/constants.h"
 
 class DisplayManager {
@@ -19,11 +23,21 @@ private:
     uint32_t screen_height;
     uint32_t buffer_size;
     bool initialized;
+    WakeTouchGuard wake_touch_guard_;
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    atom_oled::PixelShift pixel_shift_;
+    bool pixel_shift_allowed_ = true;
+#endif
 
 public:
     void init();
     void update();
     void set_brightness(float brightness);
+    void set_dimmed(bool dimmed, bool protect_wake) { wake_touch_guard_.set_dimmed(dimmed, protect_wake); }
+    void suppress_current_touch() { wake_touch_guard_.suppress_current_touch(); }
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    void allow_pixel_shift(bool allowed) { pixel_shift_allowed_ = allowed; }
+#endif
     
     uint32_t get_width() const { return screen_width; }
     uint32_t get_height() const { return screen_height; }

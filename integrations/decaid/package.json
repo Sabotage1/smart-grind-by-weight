@@ -1,0 +1,13 @@
+{
+  "name": "decaid-atom65",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Per-profile opt-in dose sync for the custom Atom65 GBW conversion",
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "build": "node scripts/build.cjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

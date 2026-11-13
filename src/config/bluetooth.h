@@ -17,6 +17,9 @@
 #define BLE_OTA_BUILD_NUMBER_CHAR_UUID "66666666-7777-8888-9999-000000000000" // Characteristic for current firmware build number
 
 // Device Settings
+#define BLE_ATOM_DOSE_SERVICE_UUID "5e5d6500-3f45-4b8c-9a65-28b4858d23d4"
+#define BLE_ATOM_DOSE_COMMAND_UUID "5e5d6501-3f45-4b8c-9a65-28b4858d23d4"
+#define BLE_ATOM_DOSE_STATUS_UUID "5e5d6502-3f45-4b8c-9a65-28b4858d23d4"
 #define BLE_DEVICE_NAME "GrindByWeight"                                       // Bluetooth device name (GATT + advertising)
 #define BLE_OTA_DEVICE_NAME BLE_DEVICE_NAME                                    // Bluetooth device name when in OTA mode
 
@@ -53,6 +56,12 @@
 //------------------------------------------------------------------------------
 // BLE TIMEOUT SETTINGS
 //------------------------------------------------------------------------------
+#ifdef ATOM_GPIO1_MOTOR_TEST
+#define BLE_AUTO_OFF_DEFAULT false // Atom/Decaid stays available until switched off.
+#else
+#define BLE_AUTO_OFF_DEFAULT true
+#endif
+
 #define BLE_AUTO_DISABLE_TIMEOUT_MS (30 * 60 * 1000)                          // Auto-disable BLE after inactivity
 #define BLE_BOOTUP_AUTO_DISABLE_TIMEOUT_MS (5 * 60 * 1000)                    // Auto-disable BLE after bootup period
 

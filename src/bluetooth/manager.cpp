@@ -62,11 +62,31 @@ BluetoothManager::~BluetoothManager() {
 
 void BluetoothManager::init(Preferences* prefs) {
     log("Bluetooth: Manager initialized (enable via Developer Mode)\n");
+    load_auto_off_setting();
     ota_handler.init(prefs);
+    dose_sync.init();
     // Create UI status queue to marshal UI updates to UI task
     if (!ui_status_queue) {
         ui_status_queue = xQueueCreate(8, sizeof(UIStatusMessage));
     }
+}
+
+void BluetoothManager::load_auto_off_setting() {
+    Preferences prefs;
+    prefs.begin("bluetooth", true);
+    auto_off_enabled_.store(prefs.getBool("auto_off", BLE_AUTO_OFF_DEFAULT));
+    prefs.end();
+}
+
+void BluetoothManager::set_auto_off_enabled(bool enabled) {
+    if (enabled == auto_off_enabled_.load()) return;
+    Preferences prefs;
+    prefs.begin("bluetooth", false);
+    prefs.putBool("auto_off", enabled);
+    prefs.end();
+    // The BLE task owns timer resets. Changing the policy never restarts BLE.
+    auto_off_enabled_.store(enabled);
+    if (enabled && ble_enabled) restart_idle_timer_.store(true);
 }
 
 void BluetoothManager::set_ui_status_callback(UIStatusCallback callback) {
@@ -109,8 +129,10 @@ void BluetoothManager::enable(unsigned long timeout_ms) {
         timeout_ms = BLE_AUTO_DISABLE_TIMEOUT_MS;
     }
     this->timeout_ms = timeout_ms;
+    restart_idle_timer_.store(false);
     unsigned long timeout_minutes = timeout_ms / 60000;
-    log("Bluetooth: Enabling BLE with reduced power settings (%lum timeout)\n", timeout_minutes);
+    if (auto_off_enabled_.load()) log("Bluetooth: Enabling BLE (%lum disconnected timeout)\n", timeout_minutes);
+    else log("Bluetooth: Enabling BLE (auto-off disabled)\n");
     
     // Enable reduced power mode for BLE
     ota_handler.enable_ble_power_mode();
@@ -236,6 +258,22 @@ void BluetoothManager::enable(unsigned long timeout_ms) {
     sysinfo_diagnostics_characteristic->setCallbacks(this);
     delay(BLE_INIT_CHARACTERISTIC_DELAY_MS);
 
+    if (dose_sync.available()) {
+        dose_service = ble_server->createService(BLE_ATOM_DOSE_SERVICE_UUID);
+        dose_command_characteristic = dose_service->createCharacteristic(
+            BLE_ATOM_DOSE_COMMAND_UUID, BLECharacteristic::PROPERTY_WRITE);
+        dose_command_characteristic->setCallbacks(this);
+        dose_status_characteristic = dose_service->createCharacteristic(
+            BLE_ATOM_DOSE_STATUS_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+        dose_status_characteristic->addDescriptor(new BLE2902());
+        atom_dose::Status initial;
+        dose_sync.next(initial);
+        uint8_t bytes[atom_dose::status_size];
+        atom_dose::encode(initial, bytes);
+        dose_status_characteristic->setValue(bytes, sizeof(bytes));
+        dose_service->start();
+    }
+
     ota_service->start();
     delay(BLE_INIT_START_DELAY_MS);
     
@@ -260,7 +298,8 @@ void BluetoothManager::enable(unsigned long timeout_ms) {
     // Set advertised name in both advertising data and scan response data
     advertising->setName(BLE_DEVICE_NAME);
     BLEAdvertisementData adv;
-    adv.setName(BLE_DEVICE_NAME);
+    if (dose_service) adv.setCompleteServices(BLEUUID(BLE_ATOM_DOSE_SERVICE_UUID));
+    else adv.setName(BLE_DEVICE_NAME);
     advertising->setAdvertisementData(adv);
     BLEAdvertisementData sr;
     sr.setName(BLE_DEVICE_NAME);
@@ -276,7 +315,8 @@ void BluetoothManager::enable(unsigned long timeout_ms) {
     sessions_info_dirty = true;
     
     start_advertising();
-    log("Bluetooth: Ready - device is advertising (%lum timeout)\n", timeout_minutes);
+    if (auto_off_enabled_.load()) log("Bluetooth: Ready - advertising (%lum disconnected timeout)\n", timeout_minutes);
+    else log("Bluetooth: Ready - advertising until manually disabled\n");
 }
 
 void BluetoothManager::enable_during_bootup() {
@@ -308,6 +348,10 @@ void BluetoothManager::disable() {
     BLEDevice::deinit(false);
     delay(BLE_SHUTDOWN_DEINIT_DELAY_MS);
     
+    dose_sync.connected(false);
+    dose_service = nullptr;
+    dose_command_characteristic = nullptr;
+    dose_status_characteristic = nullptr;
     ble_enabled = false;
     device_connected = false;
     ble_server = nullptr;
@@ -338,8 +382,13 @@ void BluetoothManager::disable() {
 void BluetoothManager::handle() {
     if (!ble_enabled) return;
     
-    // Only check timeout when no client is connected
-    if (!device_connected) {
+    if (restart_idle_timer_.exchange(false)) {
+        timeout_ms = BLE_AUTO_DISABLE_TIMEOUT_MS;
+        last_disconnect_time = millis();
+    }
+    // Connected clients never expire. With auto-off disabled, advertising stays
+    // available after boot and disconnect so Decaid can reconnect later.
+    if (auto_off_enabled_.load() && !device_connected) {
         unsigned long disconnected_elapsed = millis() - last_disconnect_time;
         
         if (disconnected_elapsed > timeout_ms) {
@@ -347,11 +396,23 @@ void BluetoothManager::handle() {
             disable();
             return;
         }
-    } else {
-        // While connected, constantly reset timeout to default for UI display
+    } else if (device_connected) {
+        // A later disconnect starts the normal idle timeout
         timeout_ms = BLE_AUTO_DISABLE_TIMEOUT_MS;
     }
     
+    if (device_connected && dose_status_characteristic) {
+        atom_dose::Status status;
+        bool reply = dose_sync.next(status);
+        if (reply || millis() - last_dose_status_ms >= 500) {
+            uint8_t bytes[atom_dose::status_size];
+            atom_dose::encode(status, bytes);
+            dose_status_characteristic->setValue(bytes, sizeof(bytes));
+            dose_status_characteristic->notify();
+            last_dose_status_ms = millis();
+        }
+    }
+
     // Handle data export updates
     update_data_export();
     process_sessions_info_updates();
@@ -396,17 +457,9 @@ unsigned long BluetoothManager::get_remaining_time_ms() const {
 }
 
 unsigned long BluetoothManager::get_bluetooth_timeout_remaining_ms() const {
-    if (!ble_enabled) return 0;
-    
-    if (device_connected) {
-        // When connected, use the full timeout from connection time
-        unsigned long elapsed = millis() - enable_time;
-        return (elapsed < timeout_ms) ? (timeout_ms - elapsed) : 0;
-    } else {
-        // When disconnected, use time since last disconnect
-        unsigned long disconnected_elapsed = millis() - last_disconnect_time;
-        return (disconnected_elapsed < timeout_ms) ? (timeout_ms - disconnected_elapsed) : 0;
-    }
+    if (!ble_enabled || !auto_off_enabled_.load() || device_connected) return 0;
+    const unsigned long disconnected_elapsed = millis() - last_disconnect_time;
+    return disconnected_elapsed < timeout_ms ? timeout_ms - disconnected_elapsed : 0;
 }
 
 
@@ -843,11 +896,13 @@ void BluetoothManager::handle_data_control_command(BLECharacteristic* characteri
 // BLE Callbacks
 void BluetoothManager::onConnect(BLEServer* server) {
     device_connected = true;
+    dose_sync.connected(true);
     log("BLE: Client connected - timeout paused while connected\n");
     mark_sessions_info_dirty();
 }
 
 void BluetoothManager::onDisconnect(BLEServer* server) {
+    dose_sync.connected(false);
     device_connected = false;
     last_disconnect_time = millis(); // Reset timeout countdown from now
     
@@ -869,7 +924,10 @@ void BluetoothManager::onDisconnect(BLEServer* server) {
 }
 
 void BluetoothManager::onWrite(BLECharacteristic* characteristic) {
-    if (characteristic == ota_control_characteristic) {
+    if (characteristic == dose_command_characteristic) {
+        const auto data = characteristic->getValue();
+        dose_sync.receive(reinterpret_cast<const uint8_t*>(data.c_str()), data.length(), millis());
+    } else if (characteristic == ota_control_characteristic) {
         handle_ota_control_command(characteristic);
     } else if (characteristic == ota_data_characteristic) {
         handle_ota_data_chunk(characteristic);

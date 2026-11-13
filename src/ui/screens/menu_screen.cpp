@@ -266,6 +266,9 @@ void MenuScreen::create_bluetooth_page(lv_obj_t* parent) {
 
     create_toggle_row(parent, "Enabled", &ble_toggle);
     create_toggle_row(parent, "Startup", &ble_startup_toggle);
+    create_toggle_row(parent, "Auto-off", &ble_auto_off_toggle);
+    create_description_label(parent, "Leave Auto-off off to keep Bluetooth available for Decaid reconnection.");
+    create_description_label(parent, "When on: 5 minutes after startup, or 30 minutes disconnected. Paused while connected.");
 
     // BLE Status label
     ble_status_label = lv_label_create(parent);
@@ -286,6 +289,10 @@ void MenuScreen::create_bluetooth_page(lv_obj_t* parent) {
     if (ble_toggle) {
         lv_obj_add_event_cb(ble_toggle, EventBridgeLVGL::dispatch_event, LV_EVENT_VALUE_CHANGED,
                            reinterpret_cast<void*>(static_cast<intptr_t>(ET::BLE_TOGGLE)));
+    }
+    if (ble_auto_off_toggle) {
+        lv_obj_add_event_cb(ble_auto_off_toggle, EventBridgeLVGL::dispatch_event, LV_EVENT_VALUE_CHANGED,
+                           reinterpret_cast<void*>(static_cast<intptr_t>(ET::BLE_AUTO_OFF_TOGGLE)));
     }
     if (ble_startup_toggle) {
         lv_obj_add_event_cb(ble_startup_toggle, EventBridgeLVGL::dispatch_event, LV_EVENT_VALUE_CHANGED,
@@ -372,6 +379,14 @@ void MenuScreen::create_grind_mode_page(lv_obj_t* parent) {
 
     // Automatic actions section
     create_separator(parent, "Automation");
+    create_description_label(parent, "Auto select");
+    auto_select_dropdown = lv_dropdown_create(parent);
+    lv_dropdown_set_options(auto_select_dropdown, "Off\nSINGLE\nDOUBLE\nCUSTOM");
+    lv_obj_set_width(auto_select_dropdown, 260);
+    lv_obj_set_style_text_font(auto_select_dropdown, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(auto_select_dropdown, lv_color_hex(THEME_COLOR_TEXT_PRIMARY), 0);
+    lv_obj_set_style_bg_color(auto_select_dropdown, lv_color_hex(THEME_COLOR_BACKGROUND), 0);
+    create_description_label(parent, "Profile selected at startup and idle-screen wake.");
     create_description_label(parent, "Start the selected profile as soon as the cup lands on the scale.");
     create_toggle_row(parent, "Start", &auto_start_toggle);
     create_description_label(parent, "Exit the completion screen once that cup weight drops away.");
@@ -413,6 +428,10 @@ void MenuScreen::create_grind_mode_page(lv_obj_t* parent) {
     if (grind_mode_swipe_toggle) {
         lv_obj_add_event_cb(grind_mode_swipe_toggle, EventBridgeLVGL::dispatch_event, LV_EVENT_VALUE_CHANGED,
                            reinterpret_cast<void*>(static_cast<intptr_t>(ET::GRIND_MODE_SWIPE_TOGGLE)));
+    }
+    if (auto_select_dropdown) {
+        lv_obj_add_event_cb(auto_select_dropdown, EventBridgeLVGL::dispatch_event, LV_EVENT_VALUE_CHANGED,
+                           reinterpret_cast<void*>(static_cast<intptr_t>(ET::AUTO_SELECT_PROFILE)));
     }
     if (auto_start_toggle) {
         lv_obj_add_event_cb(auto_start_toggle, EventBridgeLVGL::dispatch_event, LV_EVENT_VALUE_CHANGED,
@@ -626,6 +645,7 @@ void MenuScreen::hide() {
         return; // Already hidden, nothing to do
     }
 
+    if (auto_select_dropdown) lv_dropdown_close(auto_select_dropdown);
     LOG_BLE("[%lums MENU] Hiding menu screen\n", millis());
 
     // Keep the menu in memory for instant access next time
@@ -747,12 +767,16 @@ void MenuScreen::update_ble_status() {
         }
         lv_obj_clear_flag(ble_status_label, LV_OBJ_FLAG_HIDDEN);
         
-        // Show remaining time
-        unsigned long remaining_ms = bluetooth_manager->get_bluetooth_timeout_remaining_ms();
-        unsigned long remaining_min = remaining_ms / (60 * 1000);
-        char timer_text[64];
-        snprintf(timer_text, sizeof(timer_text), "Auto-disable in: %lu min", remaining_min);
-        lv_label_set_text(ble_timer_label, timer_text);
+        if (!bluetooth_manager->get_auto_off_enabled()) {
+            lv_label_set_text(ble_timer_label, "Auto-off: Off");
+        } else if (bluetooth_manager->is_connected()) {
+            lv_label_set_text(ble_timer_label, "Auto-off paused");
+        } else {
+            const unsigned long minutes = bluetooth_manager->get_bluetooth_timeout_remaining_ms() / 60000;
+            char timer_text[48];
+            snprintf(timer_text, sizeof(timer_text), "Auto-off in: %lu min", minutes);
+            lv_label_set_text(ble_timer_label, timer_text);
+        }
         lv_obj_clear_flag(ble_timer_label, LV_OBJ_FLAG_HIDDEN);
     } else {
         // When nothing to display hide the status labels
@@ -951,6 +975,10 @@ lv_obj_t* MenuScreen::create_separator(lv_obj_t* parent, const char* text) {
 }
 
 void MenuScreen::update_bluetooth_startup_toggle() {
+    if (ble_auto_off_toggle && bluetooth_manager) {
+        if (bluetooth_manager->get_auto_off_enabled()) lv_obj_add_state(ble_auto_off_toggle, LV_STATE_CHECKED);
+        else lv_obj_clear_state(ble_auto_off_toggle, LV_STATE_CHECKED);
+    }
     if (!ble_startup_toggle) return;
 
     // Read from the "bluetooth" namespace using a local Preferences instance
@@ -1112,12 +1140,14 @@ void MenuScreen::update_grind_mode_toggles() {
     swipe_prefs.end();
 
     // Read current grind mode from main grinder preferences using hardware manager
+    int auto_profile = -1;
     int mode_index = 0; // Default to Weight (index 0)
     int grinder_purge_mode_index = GRIND_PURGE_MODE_DEFAULT;  // Default to Purge
     float grinder_purge_amount_g = GRIND_PURGE_AMOUNT_DEFAULT_G;  // Default to 1.0g
     if (hardware_manager) {
         Preferences* main_prefs = hardware_manager->get_preferences();
         if (main_prefs) {
+            auto_profile = main_prefs->getInt("auto_profile", -1);
             int stored_mode = main_prefs->getInt("grind_mode", static_cast<int>(GrindMode::WEIGHT));
             mode_index = (stored_mode == static_cast<int>(GrindMode::TIME)) ? 1 : 0;
             grinder_purge_mode_index = main_prefs->getInt(GrindController::PREF_KEY_GRINDER_MODE, GRIND_PURGE_MODE_DEFAULT);
@@ -1125,6 +1155,10 @@ void MenuScreen::update_grind_mode_toggles() {
         }
     }
 
+    if (auto_select_dropdown) {
+        if (auto_profile < -1 || auto_profile >= USER_PROFILE_COUNT) auto_profile = -1;
+        lv_dropdown_set_selected(auto_select_dropdown, auto_profile + 1);
+    }
     if (grind_mode_radio_group) {
         radio_button_group_set_selection(grind_mode_radio_group, mode_index);
     }
@@ -1141,6 +1175,10 @@ void MenuScreen::update_grind_mode_toggles() {
     Preferences auto_prefs;
     auto_prefs.begin("autogrind", true);
     bool auto_start_enabled = auto_prefs.getBool("auto_start", false);
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    auto_start_enabled = false;
+    if (auto_start_toggle) lv_obj_add_state(auto_start_toggle, LV_STATE_DISABLED);
+#endif
     bool auto_return_enabled = auto_prefs.getBool("auto_return", false);
     auto_prefs.end();
 

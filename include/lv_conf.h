@@ -40,7 +40,12 @@
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
  */
-#define LV_USE_STDLIB_MALLOC    LV_STDLIB_CLIB
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    // Keep LVGL objects in PSRAM, leaving internal RAM for BLE and task stacks.
+    #define LV_USE_STDLIB_MALLOC LV_STDLIB_CUSTOM
+#else
+    #define LV_USE_STDLIB_MALLOC LV_STDLIB_CLIB
+#endif
 
 /** Possible values
  * - LV_STDLIB_BUILTIN:     LVGL's built in implementation

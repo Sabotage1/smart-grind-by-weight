@@ -68,12 +68,12 @@ The build's pin assignment differs from the original V1 display configuration:
 | Atom +5V / GND | Controller 5V / common GND |
 | Motor-control output | GPIO1, active high, to the build's verified RL interface; GRL unused |
 
-The owner's local firmware is derived from upstream v1.4.0 with V1.1/GPIO1 support. **This contribution does not change upstream firmware or provide a universal ready-to-flash Atom binary.** Match the display revision and motor pin before using an upstream image. Do not use GPIO18 for motor control on V1.1. The original Atom display is replaced by the new front-panel controller in this conversion; it is not a required second display in the finished setup.
+This fork provides the installed V1.1/GPIO1 **build19** source and firmware. See the [photo wiring guide](https://github.com/Sabotage1/smart-grind-by-weight/blob/atom65/docs/atom65/WIRING.md), [firmware installation](https://github.com/Sabotage1/smart-grind-by-weight/blob/atom65/docs/atom65/FIRMWARE.md) and [per-profile Decaid setup](https://github.com/Sabotage1/smart-grind-by-weight/blob/atom65/docs/atom65/DECAID.md). Match the display revision and interface before installing; GPIO18 must not drive the motor on V1.1.
 
-Decaid dose/profile syncing and burr-gap measurement are not part of this compatibility report.
+The original Atom display is replaced by this front-panel controller in the finished setup. No burr-gap measurement is included. The mechanical report's unit/revision limits still apply even though the firmware/Decaid integration is now supplied separately in this fork.
 
 ## Files and validation
 
 The [manifest](MANIFEST.json) records file hashes, quantities and screw counts. [CAD/mesh checks](validation.json) record one watertight positive-volume body per STL, retained component clearances and the dimensions inherited from the CAD revisions. They are separate from the owner's working-build confirmation. Print tolerances, other grinder revisions and numerical weighing performance are not established by mesh checks.
 
-Adaptation and build report: Sabotage1. Based on jaapp's Smart Grind-by-Weight project; contributed under the repository's [GPL-3.0-or-later license](LICENSE.txt).
+Adaptation and build report: Sabotage1. Based on jaapp's Smart Grind-by-Weight project; hardware follows the repository's [CERN-OHL-S-2.0 terms](CERN-OHL-S-2.0.txt). The retained [upstream notice](LICENSE.txt) covers software and hardware separately.

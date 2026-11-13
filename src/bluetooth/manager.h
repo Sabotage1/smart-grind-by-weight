@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -12,6 +13,7 @@
 #include "../config/constants.h"
 #include "ota_handler.h"
 #include "data_stream.h"
+#include "dose_sync.h"
 
 // Forward declaration to avoid circular dependency
 class UIManager;
@@ -60,6 +62,11 @@ private:
     BLEService* data_service;
     BLEService* debug_service;
     BLEService* sysinfo_service;
+    BLEService* dose_service = nullptr;
+    BLECharacteristic* dose_command_characteristic = nullptr;
+    BLECharacteristic* dose_status_characteristic = nullptr;
+    unsigned long last_dose_status_ms = 0;
+    AtomDoseSync dose_sync;
     
     // OTA characteristics
     BLECharacteristic* ota_data_characteristic;
@@ -89,6 +96,9 @@ private:
     bool debug_stream_active;
     unsigned long enable_time;
     unsigned long timeout_ms;
+    std::atomic<bool> auto_off_enabled_{BLE_AUTO_OFF_DEFAULT};
+    std::atomic<bool> restart_idle_timer_{false};
+    void load_auto_off_setting();
     unsigned long last_disconnect_time;
     
     // Component handlers
@@ -167,6 +177,7 @@ public:
      * Handle periodic updates (call from main loop)
      */
     void handle();
+    AtomDoseSync& profile_sync() { return dose_sync; }
     
     /**
      * Start/stop advertising
@@ -192,6 +203,8 @@ public:
      * General Bluetooth timeout information
      */
     unsigned long get_bluetooth_timeout_remaining_ms() const;
+    bool get_auto_off_enabled() const { return auto_off_enabled_.load(); }
+    void set_auto_off_enabled(bool enabled);
     
     /**
      * Data export methods

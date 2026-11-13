@@ -1,126 +1,48 @@
-# Smart Grind-by-Weight
+# Atom65 Grind by Weight
 
-**Turn any grinder into a precision smart grind-by-weight system**
+[![Atom65 validation](https://github.com/Sabotage1/smart-grind-by-weight/actions/workflows/atom65.yml/badge.svg?branch=atom65)](https://github.com/Sabotage1/smart-grind-by-weight/actions/workflows/atom65.yml)
 
-<table>
-<tr>
-<td width="50%">
+A community fork of [jaapp/smart-grind-by-weight](https://github.com/jaapp/smart-grind-by-weight) for the **Eureka Atom Speciality 65**, using a **Waveshare ESP32-S3-Touch-AMOLED-1.64 V1.1**, HX711 and T70 1 kg load cell.
 
-https://github.com/user-attachments/assets/e20ce3e2-417e-4a3b-bb48-05591fce9418
+The owner’s 220 V unit, purchased in 2022, runs **firmware build19**. This branch includes the installed firmware source, printable panel/cradle parts, a per-profile Decaid driver, and the build guide. Other Atom models and board revisions need their own electrical and mechanical checks.
 
+**Start here:** [parts and assembly](3d_files/atom65/README.md) · [wiring and board photos](docs/atom65/WIRING.md) · [firmware installation](docs/atom65/FIRMWARE.md) · [Decaid setup](docs/atom65/DECAID.md) · [test evidence and limits](docs/atom65/VALIDATION.md).
 
-</td>
-<td width="50%">
+## Downloads
 
-[<img src="media/smart-grind-by-weight-render.PNG" alt="Smart Grind-by-Weight Modification" width="100%">](media/smart-grind-by-weight-render.PNG)
+[Atom65 build19 release](https://github.com/Sabotage1/smart-grind-by-weight/releases/tag/v1.4.0-atom65-build19)
 
-</td>
-</tr>
-</table>
+| Download | Purpose |
+|---|---|
+| `atom65-build19-install.zip` | Exact installed application, full Bluetooth OTA patch, USB bootstrap files, portable updater and checksums |
+| `ATOM65_PRINT_AND_ASSEMBLY_v0_43.zip` | Front panel v0.43, fixed adapter v0.9 and moving 73 mm cradle v0.8; STL + editable STEP; optional two-piece panel |
+| `atom65-profile-sync-0.1.0.zip` | Per-profile opt-in Decaid grinder driver |
 
-> **⚠️ Newly Released Mod - Buyer Beware!**  
-> This is a **recently released modification project** that transforms grinders into smart grind-by-weight systems. While functional and free/open source, it's should be considered an **experimental mod** that requires technical skill to build and may have rough edges. **Build at your own risk** !
+Use the Atom65 files in this branch. Its default PlatformIO environment is `atom-v11-gpio1-motor-test` (the historical environment name; it is the installed GPIO1 build). On V1.1, **GPIO18 belongs to touch** and **LCD CS is GPIO46**. GPIO1 controls the verified RL interface in this build.
 
+## What the firmware adds
 
-The Smart Grind-by-Weight is a user-friendly, touch interface-driven, highly accurate open source grinder modification that can transforms any grinder (with a accesable motor relay) into an intelligent grind-by-weight system. Originally developed for the Eureka Mignon Specialita, the system can be easily adapted for other grinders.
+- Weighing and local grind-by-weight through the original Atom relay/power board.
+- Early GPIO1 LOW/off initialization, forced-off cup auto-start, fresh-scale checks and motor stop before OTA work.
+- Automatic OLED pixel shift: nine positions, up to two pixels, once per minute on stable idle screens; touch mapping follows the image.
+- Saved **Auto select**: Off/SINGLE/DOUBLE/CUSTOM at boot or idle dim-screen wake, with wake-touch protection.
+- Acknowledged Bluetooth coffee-dose updates that select/open CUSTOM without starting the motor.
+- **Menu → Bluetooth → Auto-off** defaults Off, keeping Bluetooth available for Decaid reconnection while the grinder is powered. Startup controls boot activation.
+- A separate Decaid driver lets each profile choose **Leave grinder unchanged** (default), **Use Decaid’s dose**, or **Use a fixed grind weight**. Enable only the profiles that should change the grinder.
 
-**The concept is simple:** Perform a "brain swap" on your grinder. Replace the original controller with our intelligent ESP32-S3 controller and add a precision load cell to the mix.
+## Suggested build order
 
-**Upgrade cost:** €30-40 in parts  
-**Target accuracy:** ±0.03g tolerance  
-**No regrets**: No permanent modifications, and original grind-by-time mode is also available
+1. Identify the exact grinder/power board and V1.1 display. Read the [wiring scope and checks](docs/atom65/WIRING.md).
+2. Print one panel, one fixed adapter and one moving cradle. Trial-fit before wiring. [Assembly and screws](3d_files/atom65/README.md).
+3. Flash and test the scale on USB alone, with the grinder harness disconnected. Tare/calibrate using a known mass.
+4. With all power removed, assemble the verified low-voltage harness, common ground and capacitor. GPIO1 → RL is specific to the checked interface. Keep the factory display’s output disconnected.
+5. Test power, scale and then the one-second local motor test. Check the displayed target before a local test grind.
+6. Connect Decaid as a **grinder** and enable one chosen profile. Leave other profiles unchanged.
 
----
+## Status and provenance
 
-## ✨ Features
+On 13 November 2026, build19 was installed over Bluetooth, verified after reboot and reconnected to Decaid 0.9.1. A live **12.5 g → CUSTOM** synchronization was confirmed. Earlier, the owner reported **12.4 g delivered for a 12.5 g target** on build12. This is one reported dose, not a repeatability study. CAD v0.43 is geometrically checked; each newest exported refinement has not been independently reprinted and fit-confirmed. [Detailed evidence](docs/atom65/VALIDATION.md).
 
-- **User-friendly interface** with 3 profiles: Single, Double, Custom
-- **Beautiful display** with simple graphics or detailed charts (easily switchable)
-- **High accuracy**: ±0.03g error tolerance  
-- **Zero-shot learning**: Algorithm adapts instantly to any grind size, bean setting, humidity etc. without manual tuning
-- **Original timed run preserved** – there is a setting to enable the original Grind-By-Time mode
-- **BLE OTA updates** for firmware
-- **Advanced analytics** using BLE data transfer and Python Streamlit reports
-- **For Eureka**: No permanent modifications needed - just swap the screen and add 3D printed parts
+The upstream `main` and existing contribution branches remain separate. [Original project README](README.upstream.md). This branch is a hardware-specific community build, not an upstream universal Atom firmware release.
 
----
-
-## 🧠 Intelligent Grinding Algorithm
-
-Our predictive grinding system uses a zero-shot learning approach that adapts to any conditions:
-
-```mermaid
-flowchart LR
-  start((Start Grind)) --> T[TARING]
-  T --> E[PREDICTIVE<br/>learn latency & flow_rate<br/>compute motor_stop_target_weight]
-  E --> S[SETTLING]
-  S --> P[PULSE<br/>bounded pulse using effective_flow_rate]
-  P -->|abs_error <= tolerance OR error < 0 OR pulses >= max| C[COMPLETED]
-  P -->|needs more| S
-```
-
-**Key Innovation:** The algorithm learns grind latency and flow rate in real-time, then uses predictive control to stop just before the target weight, followed by precision pulses to reach exact accuracy. No manual tuning required.
-
----
-
-## 🚀 Quick Start
-
-### For Users - Using Pre-built Firmware
-
-1. **Get the parts** - ESP32-S3 AMOLED display + HX711 + load cell (~€35 total) → See [Parts List](docs/DOC.md#-parts-list)
-2. **3D print the mounting parts** - All STL files included, no supports needed → See [3D Printed Parts](docs/DOC.md#3d-printed-parts) | [Community Designs](docs/3D_PRINTS.md)
-3. **Flash firmware & calibrate** - [Web Flasher](https://jaapp.github.io/smart-grind-by-weight) (Chrome/Edge desktop + Android only) or command line
-4. **Follow the assembly video** - [Complete Eureka build process](https://youtu.be/-kfKjiwJsGM)
-
-**Ready to build?** → See **[DOC.md](docs/DOC.md)** for complete build instructions, parts list, and usage guide.
-
----
-
-### For Developers - Building from Source
-
-If you want to modify the code or contribute to development, see **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** for build instructions.
-
-**Design Files:** The complete Fusion 360 design is available at `3d_files/smart-grind-by-weight. Eureka Mignon.f3z` for modification and adaptation to other grinder models.
-
----
-
-## 📊 Analytics Dashboard
-
-[<img src="media/analytics.png" alt="Analytics Dashboard" width="50%">](media/analytics.png)
-
-Export your grind data and analyze it with the included Streamlit dashboard:
-
-```bash
-python3 tools/grinder.py analyze
-```
-
-Track accuracy, flow rates, grind times, and optimize your coffee workflow with detailed session analytics.
-
----
-
-## 🙏 Credits & Inspiration
-
-This project was inspired by and builds upon the excellent work of:
-
-- **[openGBW](https://github.com/jb-xyz/openGBW)** by jb-xyz - Open source grind-by-weight system
-- **[Coffee Grinder Smart Scale](https://besson.co/projects/coffee-grinder-smart-scale)** by Besson - Smart scale integration concepts
-
----
-
-## 📝 Personal Note
-
-My goal with this project was to get real-life experience coding with AI agents. The code reflects that learning journey. I've learned a lot, and ultimately I'm in awe of how fast you can produce results with AI assistance. 
-
-What I've learned so far is that "vibe coding" with AI is great for POCs and testing theories. But afterward you must pivot and reimplement features while keeping a close eye on the architecture the AI produces. Otherwise you'll get stuck at dead ends that require painful refactoring (been there, done that). 
-
-In this project, that's most obvious when at state management - it's a bit cluttered in places. I'm very happy with the end result and I'm releasing the project as is. It eliminates grind weight variability from the espresso equation, bringing you one step closer to dialing in perfect shots.
-
-**Project Status**: This project is shared 'as-is' and I have limited availability for support. While I'm happy to share what I've built, please understand that troubleshooting and feature requests may receive limited attention.
-
-**Want to dive deeper?** → Check out **[DOC.md](docs/DOC.md)** for comprehensive documentation.
-
-**Different grinder?** → See **[Grinder Compatibility Matrix](docs/GRINDER_COMPATIBILITY.md)** for adaptation guidance.
-
-**Having issues?** → See **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** for common problems and solutions.
-
-**Changelog & Updates** → See **[Releases](https://github.com/jaapp/smart-grind-by-weight/releases)** for version history and updates.
+Firmware is GPL-3.0-or-later; hardware follows the upstream CERN-OHL-S-2.0 terms; the standalone Decaid driver is MIT. See [license notes](docs/atom65/LICENSES.md) and the retained [upstream notice](LICENSE).

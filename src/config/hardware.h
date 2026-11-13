@@ -17,7 +17,7 @@
 #define HW_TOUCH_I2C_ADDRESS 0x38                                              // I2C address of FT3168 touch controller
 
 // Display Controller (QSPI)
-#define HW_DISPLAY_CS_PIN 9                                                    // SPI chip select for display controller
+#define HW_DISPLAY_CS_PIN 46                                                    // SPI chip select for display controller
 #define HW_DISPLAY_SCK_PIN 10                                                  // SPI clock for display controller
 #define HW_DISPLAY_D0_PIN 11                                                   // SPI data line 0 (QSPI mode)
 #define HW_DISPLAY_D1_PIN 12                                                   // SPI data line 1 (QSPI mode)
@@ -30,7 +30,11 @@
 #define HW_LOADCELL_SCK_PIN 2                                                  // HX711 serial clock pin
 
 // Motor Control
-#define HW_MOTOR_RELAY_PIN 18                                                  // GPIO pin for grinder motor control relay
+#ifdef ATOM_GPIO1_MOTOR_TEST
+#define HW_MOTOR_RELAY_PIN 1                                                   // V1.1 spare GPIO; GPIO18 belongs to touch
+#else
+#define HW_MOTOR_RELAY_PIN -1                                                  // Motor-disabled bench configuration
+#endif
 #define HW_GRINDER_SETTLING_TIME_MS 500                                        // Startup transient immunity (tune based on mechanical rigidity, 0 to disable)
 
 //------------------------------------------------------------------------------

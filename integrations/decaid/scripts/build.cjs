@@ -1,0 +1,17 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const cp = require('node:child_process');
+const root = path.resolve(__dirname,'..'), dir = path.join(root,'atom65.reaplugin');
+const manifest = JSON.parse(fs.readFileSync(path.join(dir,'manifest.json')));
+const source = ['identity.js','settings-page.js','driver.js'].map(name => fs.readFileSync(path.join(dir,name),'utf8')).join('\n');
+new (require('node:vm').Script)(source);
+fs.writeFileSync(path.join(dir,'plugin.js'),source);
+const dist=path.join(root,'dist'); fs.mkdirSync(dist,{recursive:true});
+const name='atom65-profile-sync-'+manifest.version+'.zip';
+const zip=path.join(dist,name); if(fs.existsSync(zip))fs.unlinkSync(zip);
+cp.execFileSync('zip',['-j','-q',zip,path.join(dir,'manifest.json'),path.join(dir,'plugin.js'),path.join(root,'README.md'),path.join(root,'LICENSE')]);
+cp.execFileSync('unzip',['-t',zip],{stdio:'inherit'});
+const hash=crypto.createHash('sha256').update(fs.readFileSync(zip)).digest('hex');
+fs.writeFileSync(zip+'.sha256',hash+'  '+name+'\n');
+console.log(zip+'\nSHA256 '+hash);

@@ -4,7 +4,13 @@
 #include "../../include/git_info.h"
 
 // Build information - BUILD_FIRMWARE_VERSION is automatically updated by release scripts
-#define BUILD_FIRMWARE_VERSION "1.4.0"                                          // Firmware version string (updated by release automation)
+#ifdef ATOM_GPIO1_MOTOR_TEST
+#define BUILD_FIRMWARE_VERSION "1.4.0-atom65-decaid-oled"
+#elif defined(ATOM_BENCH_USB_TELEMETRY)
+#define BUILD_FIRMWARE_VERSION "1.4.0-atom-v11-bench-usb-log"
+#else
+#define BUILD_FIRMWARE_VERSION "1.4.0-atom-v11-bench"                                          // Firmware version string (updated by release automation)
+#endif
 // BUILD_NUMBER is now defined in git_info.h as an auto-incrementing integer
 #define BUILD_DATE __DATE__                                                // Compiler-provided build date
 #define BUILD_TIME __TIME__                                                // Compiler-provided build time

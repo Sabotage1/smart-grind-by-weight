@@ -3,6 +3,7 @@
 #include <driver/rmt_tx.h>
 #include <driver/rmt_encoder.h>
 #include <functional>
+#include <atomic>
 #include "../config/constants.h"
 
 // Forward declarations
@@ -20,6 +21,12 @@ private:
     rmt_encoder_handle_t current_encoder;
     bool pulse_active;
     bool rmt_initialized;
+    std::atomic<bool> rmt_transfer_done_{true};
+    static bool IRAM_ATTR on_rmt_done(rmt_channel_handle_t channel,
+                                      const rmt_tx_done_event_data_t* event, void* context);
+    // RMT is asynchronous: payload memory must outlive start()/start_pulse_rmt().
+    rmt_symbol_word_t continuous_data[1];
+    rmt_symbol_word_t pulse_symbols[64];
 
     // Motor settling tracking
     unsigned long motor_start_time;

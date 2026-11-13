@@ -267,6 +267,13 @@ void TaskManager::suspend_hardware_tasks() {
         vTaskSuspend(task_handles.grind_control_task);
     }
 
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    // Stop the hardware after suspending its controller and before OTA flash
+    // work starts. The BLE callback suspends tasks before loop() sees OTA active.
+    if (grind_controller && grind_controller->is_active()) grind_controller->stop_grind();
+    if (hardware_manager && hardware_manager->get_grinder()) hardware_manager->get_grinder()->stop();
+#endif
+
     if (task_handles.file_io_task) {
         vTaskSuspend(task_handles.file_io_task);
     }

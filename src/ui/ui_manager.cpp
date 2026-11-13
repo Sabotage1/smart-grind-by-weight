@@ -59,6 +59,9 @@ void UIManager::init(HardwareManager* hw_mgr, StateMachine* sm,
     grind_controller->set_ui_event_callback(GrindingUIController::dispatch_event);
     
     
+    if (profile_controller->get_auto_select_profile() >= 0) {
+        hardware_manager->get_display()->suppress_current_touch();
+    }
     initialized = true;
 }
 
@@ -117,13 +120,20 @@ void UIManager::create_ui() {
 void UIManager::update() {
     if (!initialized) return;
 
+    const bool screen_woke = screen_timeout_controller_ && screen_timeout_controller_->update();
+    update_profile_selection(screen_woke);
+
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    if (hardware_manager && state_machine) {
+        // Terminal grind phases are idle for selection/shifting; a manual motor
+        // test still blocks both through the physical motor-state check.
+        hardware_manager->get_display()->allow_pixel_shift(can_switch_profile(true));
+    }
+#endif
+
     // Update diagnostics controller
     if (diagnostics_controller_) {
         diagnostics_controller_->update(hardware_manager, grind_controller, millis());
-    }
-
-    if (screen_timeout_controller_) {
-        screen_timeout_controller_->update();
     }
 
     bool ota_cycle_consumed = false;
@@ -177,6 +187,54 @@ void UIManager::update() {
 
     if (status_indicator_controller_) {
         status_indicator_controller_->update();
+    }
+}
+
+bool UIManager::can_switch_profile(bool allow_wake_touch) const {
+    if (!state_machine || !profile_controller || !grind_controller || !hardware_manager) return false;
+    const auto state = state_machine->get_current_state();
+    if (state != UIState::READY && state != UIState::MENU &&
+        state != UIState::GRIND_COMPLETE && state != UIState::GRIND_TIMEOUT) return false;
+    if (!grind_controller->can_select_profile()) return false;
+    auto* motor = hardware_manager->get_grinder();
+    if ((motor && motor->is_grinding()) || (bluetooth_manager && bluetooth_manager->is_updating())) return false;
+    auto* display = hardware_manager->get_display();
+    return display && (allow_wake_touch || !display->get_touch_driver()->is_pressed());
+}
+
+void UIManager::show_selected_profile() {
+    // All callers first check idle state. Acknowledge a finished grind without starting one.
+    grind_controller->return_to_idle();
+    hardware_manager->get_display()->suppress_current_touch();
+    current_tab = profile_controller->get_current_profile();
+    switch_to_state(UIState::READY);
+}
+
+void UIManager::update_profile_selection(bool screen_woke) {
+    // A fresh Decaid command takes priority over the saved wake-up selection in this frame.
+    if (screen_woke && can_switch_profile(true) && profile_controller->select_auto_profile()) {
+        show_selected_profile();
+    }
+    if (!bluetooth_manager || !profile_controller || !grind_controller || !state_machine) return;
+
+    atom_dose::Status status;
+    status.dose = static_cast<uint16_t>(profile_controller->get_current_weight() * 10.0f + 0.5f);
+    status.slot = profile_controller->get_current_profile();
+    status.mode = profile_controller->get_grind_mode() == GrindMode::WEIGHT ? 0 : 1;
+    status.minimum = static_cast<uint16_t>(USER_MIN_TARGET_WEIGHT_G * 10.0f);
+    status.maximum = static_cast<uint16_t>(USER_MAX_TARGET_WEIGHT_G * 10.0f);
+    const bool active = !grind_controller->can_select_profile() ||
+        (hardware_manager && hardware_manager->get_grinder()->is_grinding());
+    const bool ota = bluetooth_manager->is_updating();
+    const bool ready = can_switch_profile();
+    status.flags = (ready ? atom_dose::ready : 0) | (active ? atom_dose::grinding : 0) |
+        (ota ? atom_dose::updating : 0) | (!ready && !active && !ota ? atom_dose::editing : 0);
+    const bool accepted = bluetooth_manager->profile_sync().process(status, millis(), [this](float weight) {
+        profile_controller->apply_external_dose(weight);
+    });
+    if (accepted) {
+        if (screen_timeout_controller_) screen_timeout_controller_->wake_for_external_update();
+        show_selected_profile();
     }
 }
 
@@ -363,6 +421,11 @@ void UIManager::refresh_auto_action_settings() {
     Preferences prefs;
     prefs.begin("autogrind", true);
     auto_actions_.auto_start_enabled = prefs.getBool("auto_start", false);
+#ifdef ATOM_GPIO1_MOTOR_TEST
+    // Commissioning build always requires a deliberate button press.
+    // Preserve the saved preference for rollback to the bench firmware.
+    auto_actions_.auto_start_enabled = false;
+#endif
     auto_actions_.auto_return_enabled = prefs.getBool("auto_return", false);
     prefs.end();
 
