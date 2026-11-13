@@ -4,6 +4,8 @@ This records the **low-voltage connections in the owner’s working build**: Ato
 
 The grinder contains mains voltage. Internal identification/isolation and supply checks require a qualified technician. Do the wiring with mains and USB disconnected and stored energy discharged. The transformer’s **9 V AC** secondary is not the **+5 V DC** controller input. Do not connect USB and the Atom supply together in this build.
 
+[Owner’s parts list and shopping links](PARTS.md).
+
 ## Connection map
 
 ![Low-voltage connection map](images/wiring.svg)

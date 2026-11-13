@@ -6,7 +6,7 @@ A community fork of [jaapp/smart-grind-by-weight](https://github.com/jaapp/smart
 
 The owner’s 220 V unit, purchased in 2022, runs **firmware build19**. This branch includes the installed firmware source, printable panel/cradle parts, a per-profile Decaid driver, and the build guide. Other Atom models and board revisions need their own electrical and mechanical checks.
 
-**Start here:** [parts and assembly](3d_files/atom65/README.md) · [wiring and board photos](docs/atom65/WIRING.md) · [firmware installation](docs/atom65/FIRMWARE.md) · [Decaid setup](docs/atom65/DECAID.md) · [test evidence and limits](docs/atom65/VALIDATION.md).
+**Start here:** [owner’s parts list and shopping links](docs/atom65/PARTS.md) · [parts and assembly](3d_files/atom65/README.md) · [wiring and board photos](docs/atom65/WIRING.md) · [firmware installation](docs/atom65/FIRMWARE.md) · [Decaid setup](docs/atom65/DECAID.md) · [test evidence and limits](docs/atom65/VALIDATION.md).
 
 ## Downloads
 
